@@ -21,12 +21,20 @@
  */
 
 #include <stdio.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include "boards.h"
-#include "app_util_platform.h"
 #include "app_uart.h"
 #include "app_error.h"
 #include "nrf_drv_twi.h"
 #include "nrf_delay.h"
+#include "nrf_log.h"
+#include "nrf_gpio.h"
+#include "nrf_error.h"
+#include "app_util_platform.h"
+
+
+
 
 /*Pins to connect shield. */
 #define ARDUINO_I2C_SCL_PIN 7
@@ -37,25 +45,59 @@
 #define UART_RX_BUF_SIZE 1
 
 /*Common addresses definition for accelereomter. */
-#define MMA7660_ADDR        (0x98U >> 1)
+#define MMA8451_ADDR        (0x1CU >> 1) // 7bit I2C address, SA0 pin is to GND
 
-#define MMA7660_REG_XOUT    0x00U
-#define MMA7660_REG_YOUT    0x01U
-#define MMA7660_REG_ZOUT    0x02U
-#define MMA7660_REG_TILT    0x03U
-#define MMA7660_REG_SRST    0x04U
-#define MMA7660_REG_SPCNT   0x05U
-#define MMA7660_REG_INTSU   0x06U
-#define MMA7660_REG_MODE    0x07U
-#define MMA7660_REG_SR      0x08U
-#define MMA7660_REG_PDET    0x09U
-#define MMA7660_REG_PD      0x0AU
+#define MMA8451_REG_STATUS				0x00U
+#define MMA8451_REG_OUT_X_MSB			0x01U
+#define MMA8451_REG_OUT_X_LSB			0x02U
+#define MMA8451_REG_OUT_Y_MSB			0x03U
+#define MMA8451_REG_OUT_Y_LSB			0x04U
+#define MMA8451_REG_OUT_Z_MSB			0x05U
+#define MMA8451_REG_OUT_Z_LSB			0x06U
+#define MMA8451_REG_F_SETUP				0x09U
+#define MMA8451_REG_TRIG_CFG			0x0AU
+#define MMA8451_REG_SYSMOD				0x0BU
+#define MMA8451_REG_INT_SOURCE			0x0CU
+#define MMA8451_REG_WHO_AM_I			0x0DU
+#define MMA8451_REG_XYZ_DATA_CFG		0x0EU
+#define MMA8451_REG_HP_FILTER_CUTOFF	0x0FU
+#define MMA8451_REG_PL_STATUS			0x10U
+#define MMA8451_REG_PL_CFG				0x11U
+#define MMA8451_REG_PL_COUNT			0x12U
+#define MMA8451_REG_PL_BF_ZCOMP			0x13U
+#define MMA8451_REG_P_L_THS_REG			0x14U
+#define MMA8451_REG_FF_MT_CFG			0x15U
+#define MMA8451_REG_FF_MT_SRC			0x16U
+#define MMA8451_REG_FF_MT_THS			0x17U
+#define MMA8451_REG_FF_MT_COUNT			0x18U
+#define MMA8451_REG_TRANSIENT_CFG		0x1DU
+#define MMA8451_REG_TRANSIENT_SCR		0x1EU
+#define MMA8451_REG_TRANSIENT_THS		0x1FU
+#define MMA8451_REG_TRANSIENT_COUNT		0x20U
+#define MMA8451_REG_PULSE_CFG			0x21U
+#define MMA8451_REG_PULSE_SRC			0x22U
+#define MMA8451_REG_PULSE_THSX			0x23U
+#define MMA8451_REG_PULSE_THSY			0x24U
+#define MMA8451_REG_PULSE_THSZ			0x25U
+#define MMA8451_REG_PULSE_TMLT			0x26U
+#define MMA8451_REG_PULSE_LTCY			0x27U
+#define MMA8451_REG_PULSE_WIND			0x28U
+#define MMA8451_REG_ASLP_COUNT			0x29U
+#define MMA8451_REG_CTRL_REG1			0x2AU
+#define MMA8451_REG_CTRL_REG2			0x2BU
+#define MMA8451_REG_CTRL_REG3			0x2CU
+#define MMA8451_REG_CTRL_REG4			0x2DU
+#define MMA8451_REG_CTRL_REG5			0x2EU
+#define MMA8451_REG_OFF_X				0x2FU
+#define MMA8451_REG_OFF_Y				0x30U
+#define MMA8451_REG_OFF_Z				0x31U
 
-/* Mode for MMA7660. */
+
+/* Mode for MMA8451. */
 #define ACTIVE_MODE 1u
 
 /*Failure flag for reading from accelerometer. */
-#define MMA7660_FAILURE_FLAG (1u << 6)
+#define MMA8451_FAILURE_FLAG (1u << 6)
 
 /*Tilt specific bits*/
 #define TILT_TAP_MASK (1U << 5)
@@ -128,7 +170,7 @@ static volatile bool m_xfer_done = true;
 /* Indicates if setting mode operation has ended. */
 static volatile bool m_set_mode_done = false;
 /* TWI instance. */
-static const nrf_drv_twi_t m_twi_mma_7660 = NRF_DRV_TWI_INSTANCE(0);
+static const nrf_drv_twi_t m_twi_mma_8451 = NRF_DRV_TWI_INSTANCE(0);
 
 /**
  * @brief Function for casting 6 bit uint to 6 bit int.
@@ -136,7 +178,7 @@ static const nrf_drv_twi_t m_twi_mma_7660 = NRF_DRV_TWI_INSTANCE(0);
  */
 __STATIC_INLINE void int_to_uint(int8_t * put, uint8_t data)
 {
-    if (!(data & MMA7660_FAILURE_FLAG))     //6th bit is failure flag - we cannot read sample
+    if (!(data & MMA8451_FAILURE_FLAG))     //6th bit is failure flag - we cannot read sample
     {
         *put = (int8_t)(data << 2) / 4;
     }
@@ -192,18 +234,18 @@ static void uart_config(void)
 
 
 /**
- * @brief Function for setting active mode on MMA7660 accelerometer.
+ * @brief Function for setting active mode on MMA8451 accelerometer.
  */
-void MMA7660_set_mode(void)
+void MMA8451_set_mode(void)
 {
-    ret_code_t err_code;
-    /* Writing to MMA7660_REG_MODE "1" enables the accelerometer. */
-    uint8_t reg[2] = {MMA7660_REG_MODE, ACTIVE_MODE};
+    /*ret_code_t err_code;
 
-    err_code = nrf_drv_twi_tx(&m_twi_mma_7660, MMA7660_ADDR, reg, sizeof(reg), false);
+    uint8_t reg[2] = {MMA8451_REG_MODE, ACTIVE_MODE};
+
+    err_code = nrf_drv_twi_tx(&m_twi_mma_8451, (MMA8451_ADDR << 1 | 0), reg, sizeof(reg), false); // write accelerometer address with R/W bit set to 0 (write)
     APP_ERROR_CHECK(err_code);
-    
-    while(m_set_mode_done == false);
+
+    while(m_set_mode_done == false);*/
 }
 
 /**
@@ -277,13 +319,16 @@ void read_data(sample_t * p_new_sample)
 void twi_handler(nrf_drv_twi_evt_t const * p_event, void * p_context)
 {   
     ret_code_t err_code;
-    static sample_t m_sample;
+    // static sample_t m_sample;
+    static uint8_t reading = 0;
     
+    NRF_LOG_PRINTF("-handler started: %d\n", p_event->type);
+
     switch(p_event->type)
     {
         case NRF_DRV_TWI_EVT_DONE:
-            if ((p_event->type == NRF_DRV_TWI_EVT_DONE) &&
-                (p_event->xfer_desc.type == NRF_DRV_TWI_XFER_TX))
+        	NRF_LOG_PRINTF("-case NRF_DRV_TWI_EVT_DONE:\n");
+            if ((p_event->type == NRF_DRV_TWI_EVT_DONE) && (p_event->xfer_desc.type == NRF_DRV_TWI_XFER_TX))
             {
                 if(m_set_mode_done != true)
                 {
@@ -292,16 +337,21 @@ void twi_handler(nrf_drv_twi_evt_t const * p_event, void * p_context)
                 }
                 m_xfer_done = false;
                 /* Read 4 bytes from the specified address. */
-                err_code = nrf_drv_twi_rx(&m_twi_mma_7660, MMA7660_ADDR, (uint8_t*)&m_sample, sizeof(m_sample));
+                err_code = nrf_drv_twi_rx(&m_twi_mma_8451, MMA8451_ADDR, &reading, sizeof(reading));
                 APP_ERROR_CHECK(err_code);
+                NRF_LOG_PRINTF("-WHO_AM_I: %d right after\n", reading);
             }
             else
             {
-                read_data(&m_sample);
+                //read_data(&m_sample);
+            	NRF_LOG_PRINTF("-WHO_AM_I: %d\n", reading);
+
                 m_xfer_done = true;
             }
             break;
+
         default:
+        	NRF_LOG_PRINTF("-case default event type:%d\n", p_event->type);
             break;        
     }   
 }
@@ -313,45 +363,120 @@ void twi_init (void)
 {
     ret_code_t err_code;
     
-    const nrf_drv_twi_config_t twi_mma_7660_config = {
+    const nrf_drv_twi_config_t twi_mma_8451_config = {
        .scl                = ARDUINO_SCL_PIN,
        .sda                = ARDUINO_SDA_PIN,
        .frequency          = NRF_TWI_FREQ_100K,
        .interrupt_priority = APP_IRQ_PRIORITY_HIGH
     };
     
-    err_code = nrf_drv_twi_init(&m_twi_mma_7660, &twi_mma_7660_config, twi_handler, NULL);
+    err_code = nrf_drv_twi_init(&m_twi_mma_8451, &twi_mma_8451_config, twi_handler, NULL);
     APP_ERROR_CHECK(err_code);
+    NRF_LOG_PRINTF("twi init: %d\n", err_code);
     
-    nrf_drv_twi_enable(&m_twi_mma_7660);
+    nrf_drv_twi_enable(&m_twi_mma_8451);
 }
 
 /**
  * @brief Function for main application entry.
  */
-int main(void)
+/*int main(void)
 {
+	APP_ERROR_CHECK(NRF_LOG_INIT());
+	NRF_LOG_PRINTF("\n\nSTARTING\n\n\n");
+
     uart_config();
    // int a = __GNUC__, c = __GNUC_PATCHLEVEL__;
-    printf("\n\rTWI sensor example\r\n");
+    //NRF_LOG_PRINTF("\n\rTWI sensor example\r\n");
+    nrf_gpio_cfg_output(BSP_LED_0);
+
+
+
+
     twi_init();
-    MMA7660_set_mode();
+    //MMA8451_set_mode();
+
+    // i2c start condition: MMA8451 address with write bit set to 0 (write)
+
+    // read register: send register address and R/W bit set to 1 (read)
+
     
-    uint8_t reg = 0;
+    uint8_t reg = MMA8451_REG_WHO_AM_I;
     ret_code_t err_code;
     
     while(true)
     {
-        nrf_delay_ms(100);
-        /* Start transaction with a slave with the specified address. */
+    	NRF_LOG_PRINTF("____\r\n");
+
+        // Start transaction with a slave with the specified address.
+
+
+
+        err_code = nrf_drv_twi_tx(&m_twi_mma_8451, MMA8451_ADDR, &reg, sizeof(reg), true);
+        NRF_LOG_PRINTF("request sent\r\n");
+        APP_ERROR_CHECK(err_code);
+
+
         do
         {
-            __WFE();
-        }while(m_xfer_done == false);
-        err_code = nrf_drv_twi_tx(&m_twi_mma_7660, MMA7660_ADDR, &reg, sizeof(reg), true);
-        APP_ERROR_CHECK(err_code);
+			NRF_LOG_PRINTF("waiting...\r\n");
+			__WFE();
+			NRF_LOG_PRINTF("...done waiting\r\n");
+		} while(m_xfer_done == false);
         m_xfer_done = false;
+
+        nrf_delay_ms(1000);
+		nrf_gpio_pin_clear(BSP_LED_0);
+		nrf_delay_ms(1000);
+		nrf_gpio_pin_set(BSP_LED_0);
     }
+    nrf_delay_ms(500);
+}*/
+
+int main(void)
+{
+	APP_ERROR_CHECK(NRF_LOG_INIT());
+	NRF_LOG_PRINTF("\n\nSTARTING\n\n\n");
+    nrf_gpio_cfg_output(BSP_LED_0);
+
+
+    uart_config();
+    twi_init();
+
+    while(true)
+    {
+    	NRF_LOG_PRINTF("____\r\n");
+
+    	ret_code_t err_code;
+		static uint8_t reading = 1;
+
+
+		err_code = nrf_drv_twi_tx(&m_twi_mma_8451, MMA8451_ADDR, MMA8451_REG_WHO_AM_I, 7, true);
+		APP_ERROR_CHECK(err_code);
+		NRF_LOG_PRINTF("tx with WHO_AM_I address and value 1; err_code: %d data: %d\n", err_code, reading);
+
+		do
+		{
+			NRF_LOG_PRINTF("wait...\r\n");
+			__WFE();
+			NRF_LOG_PRINTF("done waiting\r\n");
+		}while(m_xfer_done == false);
+
+		m_xfer_done = false;
+
+		//
+
+		// blink the led
+        nrf_delay_ms(1000);
+		nrf_gpio_pin_clear(BSP_LED_0);
+		nrf_delay_ms(1000);
+		nrf_gpio_pin_set(BSP_LED_0);
+		nrf_delay_ms(500);
+    }
+
+
+
+
 }
 
 /** @} */
