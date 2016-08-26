@@ -30,9 +30,9 @@
 #include "nrf_drv_twi.h"
 #include "nrf_delay.h"
 #include "nrf_gpio.h"
+#include "nrf_log.h"
 
 const uint8_t leds_list[LEDS_NUMBER] = LEDS_LIST;
-
 
 /*Pins to connect shield. */
 #define ARDUINO_I2C_SCL_PIN 7
@@ -43,7 +43,7 @@ const uint8_t leds_list[LEDS_NUMBER] = LEDS_LIST;
 #define UART_RX_BUF_SIZE 1
 
 /*Common addresses definition for accelereometer LIS2HH12. */
-#define LIS2HH12_ADDR				0b0011101	// 7bit I2C address
+#define LIS2HH12_ADDR				0x1E	// 7bit I2C address
 
 #define LIS2HH12_REG_TEMP_L			0x0B
 #define LIS2HH12_REG_TEMP_H			0x0C
@@ -85,8 +85,6 @@ const uint8_t leds_list[LEDS_NUMBER] = LEDS_LIST;
 
 #define LIS2HH12_REG_FIFO_stream		01001000b	// to set fifo in Stream mode, just for testing
 
-
-
 /* Mode for MMA7660. */
 #define ACTIVE_MODE 1u
 
@@ -109,41 +107,36 @@ const uint8_t leds_list[LEDS_NUMBER] = LEDS_LIST;
 /**
  * @brief Structure for holding sum of samples from accelerometer.
  */
-typedef struct
-{
-    int16_t x;
-    int16_t y;
-    int16_t z;
+typedef struct {
+	int16_t x;
+	int16_t y;
+	int16_t z;
 } sum_t;
 //static sum_t m_sum = {0};
 
 /**
  * @brief Union to keep raw and converted data from accelerometer samples at one memory space.
  */
-typedef union{
-    uint8_t raw;
-    int8_t  conv;
-}elem_t;
+typedef union {
+	uint8_t raw;
+	int8_t conv;
+} elem_t;
 
 /**
  * @brief Enum for selecting accelerometer orientation.
  */
-typedef enum{
-    LEFT = 1,
-    RIGHT = 2,
-    DOWN = 5,
-    UP = 6
-}accelerometer_orientation_t;
+typedef enum {
+	LEFT = 1, RIGHT = 2, DOWN = 5, UP = 6
+} accelerometer_orientation_t;
 
 /**
  * @brief Structure for holding samples from accelerometer.
  */
-typedef struct
-{
-    elem_t  x;
-    elem_t  y;
-    elem_t  z;
-    uint8_t tilt;
+typedef struct {
+	elem_t x;
+	elem_t y;
+	elem_t z;
+	uint8_t tilt;
 } sample_t;
 
 #ifdef __GNUC_PATCHLEVEL__
@@ -166,175 +159,128 @@ static volatile bool m_set_mode_done = false;
 /* TWI instance. */
 static const nrf_drv_twi_t m_twi_LIS2HH12 = NRF_DRV_TWI_INSTANCE(0);
 
-
-
 /**
  * @brief UART events handler.
  */
-static void uart_events_handler(app_uart_evt_t * p_event)
-{
-    switch (p_event->evt_type)
-    {
-        case APP_UART_COMMUNICATION_ERROR:
-            APP_ERROR_HANDLER(p_event->data.error_communication);
-            break;
+static void uart_events_handler(app_uart_evt_t * p_event) {
+	switch (p_event->evt_type) {
+	case APP_UART_COMMUNICATION_ERROR:
+		APP_ERROR_HANDLER(p_event->data.error_communication);
+		break;
 
-        case APP_UART_FIFO_ERROR:
-            APP_ERROR_HANDLER(p_event->data.error_code);
-            break;
+	case APP_UART_FIFO_ERROR:
+		APP_ERROR_HANDLER(p_event->data.error_code);
+		break;
 
-        default:
-            break;
-    }
+	default:
+		break;
+	}
 }
-
 
 /**
  * @brief UART initialization.
  */
-static void uart_config(void)
-{
-    uint32_t                     err_code;
-    const app_uart_comm_params_t comm_params =
-    {
-        RX_PIN_NUMBER,
-        TX_PIN_NUMBER,
-        RTS_PIN_NUMBER,
-        CTS_PIN_NUMBER,
-        APP_UART_FLOW_CONTROL_DISABLED,
-        false,
-        UART_BAUDRATE_BAUDRATE_Baud115200
-    };
+static void uart_config(void) {
+	uint32_t err_code;
+	const app_uart_comm_params_t comm_params = {
+	RX_PIN_NUMBER,
+	TX_PIN_NUMBER,
+	RTS_PIN_NUMBER,
+	CTS_PIN_NUMBER, APP_UART_FLOW_CONTROL_DISABLED,
+	false,
+	UART_BAUDRATE_BAUDRATE_Baud115200 };
 
-    APP_UART_FIFO_INIT(&comm_params,
-                       UART_RX_BUF_SIZE,
-                       UART_TX_BUF_SIZE,
-                       uart_events_handler,
-                       APP_IRQ_PRIORITY_LOW,
-                       err_code);
+	APP_UART_FIFO_INIT(&comm_params, UART_RX_BUF_SIZE, UART_TX_BUF_SIZE,
+			uart_events_handler, APP_IRQ_PRIORITY_LOW, err_code);
 
-    APP_ERROR_CHECK(err_code);
+	APP_ERROR_CHECK(err_code);
 }
 
-
-/**
- * @brief Function for setting active mode on MMA7660 accelerometer.
- */
-/*void LIS2HH12_set_mode(void)
-{
-    ret_code_t err_code;
-    // Writing to MMA7660_REG_MODE "1" enables the accelerometer.
-    uint8_t reg[2] = {MMA7660_REG_MODE, ACTIVE_MODE};
-
-    err_code = nrf_drv_twi_tx(&m_twi_LIS2HH12, LIS2HH12_ADDR, reg, sizeof(reg), false);
-    APP_ERROR_CHECK(err_code);
-    
-    while(m_set_mode_done == false);
-}*/
-
-/**
- * @brief Function for checking the WHO_AM_I register to test I2C connection
- */
-void LIS2HH12_I2Ctest(void)
-{
-    /*ret_code_t err_code;
-
-    uint8_t reg[2] = {MMA7660_REG_MODE, ACTIVE_MODE};
-
-    err_code = nrf_drv_twi_tx(&m_twi_LIS2HH12, LIS2HH12_ADDR, LIS2HH12_REG_WHO_AM_I, sizeof(LIS2HH12_REG_WHO_AM_I), false);
-    APP_ERROR_CHECK(err_code);
-
-    while(m_set_mode_done == false);
-    */
-}
 
 
 /**
  * @brief TWI events handler.
  */
-void twi_handler(nrf_drv_twi_evt_t const * p_event, void * p_context)
-{   
-    ret_code_t err_code;
-    static sample_t m_sample;
-    
-    printf("\n\revent generated on I2C!\r\n");
+void twi_handler(nrf_drv_twi_evt_t const * p_event, void * p_context) {
+	ret_code_t err_code;
+	static uint8_t result;
 
-    switch(p_event->type)
-    {
-        case NRF_DRV_TWI_EVT_DONE:
-            if ((p_event->type == NRF_DRV_TWI_EVT_DONE) && (p_event->xfer_desc.type == NRF_DRV_TWI_XFER_TX))
-            {
-                if(m_set_mode_done != true)
-                {
-                    m_set_mode_done  = true;
-                    return;
-                }
-                m_xfer_done = false;
-                /* Read 4 bytes from the specified address. */
-                err_code = nrf_drv_twi_rx(&m_twi_LIS2HH12, LIS2HH12_ADDR, (uint8_t*)&m_sample, sizeof(m_sample));
-                APP_ERROR_CHECK(err_code);
-            }
-            else
-            {
-                //read_data(&m_sample);
-                m_xfer_done = true;
-            }
-            break;
-        default:
-            break;        
-    }   
+	NRF_LOG_PRINTF("\n\rtwi handler event:%d\r\n", p_event->type);
+
+	switch (p_event->type) {
+	case NRF_DRV_TWI_EVT_DONE:
+		if ((p_event->type == NRF_DRV_TWI_EVT_DONE)
+				&& (p_event->xfer_desc.type == NRF_DRV_TWI_XFER_TX)) {
+			if (m_set_mode_done != true) {
+				m_set_mode_done = true;
+				return;
+			}
+			m_xfer_done = false;
+			/* Read 4 bytes from the specified address. */
+			err_code = nrf_drv_twi_rx(&m_twi_LIS2HH12, LIS2HH12_ADDR, (uint8_t*) &result, sizeof(result));
+			APP_ERROR_CHECK(err_code);
+			NRF_LOG_PRINTF("\n\rtwi handler nrf_drv_twi_rx result:%d\r\n", result);
+		} else {
+			//read_data(&m_sample);
+			/*NRF_LOG_PRINTF("m_sample->x :%d\r\n", m_sample.x);
+			 NRF_LOG_PRINTF("m_sample->y :%d\r\n", m_sample.y);
+			 NRF_LOG_PRINTF("m_sample->z :%d\r\n", m_sample.z);
+			 NRF_LOG_PRINTF("m_sample->tilt :%d\r\n", m_sample.tilt);*/
+			m_xfer_done = true;
+		}
+		break;
+	default:
+
+		break;
+	}
 }
 
 /**
  * @brief UART initialization.
  */
-void twi_init (void)
-{
-    ret_code_t err_code;
-    
-    const nrf_drv_twi_config_t twi_LIS2HH12_config = {
-       .scl                = ARDUINO_SCL_PIN,
-       .sda                = ARDUINO_SDA_PIN,
-       .frequency          = NRF_TWI_FREQ_100K,
-       .interrupt_priority = APP_IRQ_PRIORITY_HIGH
-    };
-    
-    err_code = nrf_drv_twi_init(&m_twi_LIS2HH12, &twi_LIS2HH12_config, twi_handler, NULL);
-    APP_ERROR_CHECK(err_code);
-    
-    nrf_drv_twi_enable(&m_twi_LIS2HH12);
+void twi_init(void) {
+	ret_code_t err_code;
+
+	const nrf_drv_twi_config_t twi_LIS2HH12_config = { .scl =
+			ARDUINO_I2C_SCL_PIN, .sda = ARDUINO_I2C_SDA_PIN, .frequency =
+			NRF_TWI_FREQ_100K, .interrupt_priority = APP_IRQ_PRIORITY_HIGH };
+
+	err_code = nrf_drv_twi_init(&m_twi_LIS2HH12, &twi_LIS2HH12_config, NULL, NULL);
+	APP_ERROR_CHECK(err_code);
+	NRF_LOG_PRINTF("twi_init returns:%d\r\n", err_code);
+
+	nrf_drv_twi_enable(&m_twi_LIS2HH12);
 }
 
 /**
  * @brief Function for main application entry.
  */
-int main(void)
-{
+int main(void) {
 	// Configure LED-pins as outputs for debugging.
 	LEDS_CONFIGURE(LEDS_MASK);
 
-    uart_config();
-    // int a = __GNUC__, c = __GNUC_PATCHLEVEL__;
-    printf("\n\rLIS2HH12 sensor example\r\n");
-    twi_init();
-    //LIS2HH12_set_mode();
-    
-    uint8_t reg = 0;
-    ret_code_t err_code;
-    
+	uart_config();
 
-    while(true)
-    {
-        nrf_delay_ms(100);
-        // Start transaction with a slave with the specified address.
-        do
-        {
-            __WFE();
-        }while(m_xfer_done == false);
-        err_code = nrf_drv_twi_tx(&m_twi_LIS2HH12, LIS2HH12_ADDR, &reg, sizeof(reg), true);
-        APP_ERROR_CHECK(err_code);
-        m_xfer_done = false;
-    }
+	NRF_LOG_PRINTF("\n\rTWI sensor example\r\n");
+	twi_init();
+
+	uint8_t reg = LIS2HH12_REG_WHO_AM_I;
+	uint8_t res = 0;
+	ret_code_t err_code;
+
+	while (true) {
+		nrf_delay_ms(1000);
+		// Start transaction with a slave with the specified address.
+
+		err_code = nrf_drv_twi_tx(&m_twi_LIS2HH12, LIS2HH12_ADDR, &reg,	sizeof(reg), true);
+		APP_ERROR_CHECK(err_code);
+		NRF_LOG_PRINTF("nrf_drv_twi_tx reg:%d\r\n", reg);
+
+		err_code = nrf_drv_twi_rx(&m_twi_LIS2HH12, LIS2HH12_ADDR, (uint8_t*)&res, sizeof(res));
+		APP_ERROR_CHECK(err_code);
+		NRF_LOG_PRINTF("\n\rnrf_drv_twi_rx result:%02x err_code: %d\r\n", res, err_code);
+
+	}
 }
 
 /** @} */
