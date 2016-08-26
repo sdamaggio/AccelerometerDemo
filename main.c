@@ -27,7 +27,6 @@
 #include "app_error.h"
 #include "nrf_drv_twi.h"
 #include "nrf_delay.h"
-<<<<<<< HEAD
 #include "nrf_gpio.h"
 #include "nrf_log.h"
 
