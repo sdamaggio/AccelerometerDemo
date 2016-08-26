@@ -21,18 +21,18 @@
  */
 
 #include <stdio.h>
-#include <stdbool.h>
-#include <stdint.h>
 #include "boards.h"
 #include "app_util_platform.h"
 #include "app_uart.h"
 #include "app_error.h"
 #include "nrf_drv_twi.h"
 #include "nrf_delay.h"
+<<<<<<< HEAD
 #include "nrf_gpio.h"
 #include "nrf_log.h"
 
 const uint8_t leds_list[LEDS_NUMBER] = LEDS_LIST;
+
 
 /*Pins to connect shield. */
 #define ARDUINO_I2C_SCL_PIN 7
@@ -41,6 +41,7 @@ const uint8_t leds_list[LEDS_NUMBER] = LEDS_LIST;
 /*UART buffer size. */
 #define UART_TX_BUF_SIZE 256
 #define UART_RX_BUF_SIZE 1
+
 
 /*Common addresses definition for accelereometer LIS2HH12. */
 #define LIS2HH12_ADDR				0x1E	// 7bit I2C address
@@ -112,7 +113,7 @@ typedef struct {
 	int16_t y;
 	int16_t z;
 } sum_t;
-//static sum_t m_sum = {0};
+static sum_t m_sum = {0};
 
 /**
  * @brief Union to keep raw and converted data from accelerometer samples at one memory space.
@@ -146,7 +147,7 @@ typedef struct {
 #endif
 #endif
 /* Buffer for samples. */
-//static sample_t m_sample_buffer[NUMBER_OF_SAMPLES] = {0};
+static sample_t m_sample_buffer[NUMBER_OF_SAMPLES] = {0};
 #ifdef __GNUC_PATCHLEVEL__
 #if GCC_VERSION < 50505
 #pragma GCC diagnostic pop
@@ -157,6 +158,7 @@ static volatile bool m_xfer_done = true;
 /* Indicates if setting mode operation has ended. */
 static volatile bool m_set_mode_done = false;
 /* TWI instance. */
+
 static const nrf_drv_twi_t m_twi_LIS2HH12 = NRF_DRV_TWI_INSTANCE(0);
 
 /**
@@ -201,6 +203,7 @@ static void uart_config(void) {
 /**
  * @brief TWI events handler.
  */
+
 void twi_handler(nrf_drv_twi_evt_t const * p_event, void * p_context) {
 	ret_code_t err_code;
 	static uint8_t result;
@@ -238,6 +241,7 @@ void twi_handler(nrf_drv_twi_evt_t const * p_event, void * p_context) {
 /**
  * @brief UART initialization.
  */
+
 void twi_init(void) {
 	ret_code_t err_code;
 
@@ -255,6 +259,7 @@ void twi_init(void) {
 /**
  * @brief Function for main application entry.
  */
+
 int main(void) {
 	// Configure LED-pins as outputs for debugging.
 	LEDS_CONFIGURE(LEDS_MASK);
