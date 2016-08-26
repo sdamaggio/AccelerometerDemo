@@ -85,59 +85,11 @@ const uint8_t leds_list[LEDS_NUMBER] = LEDS_LIST;
 
 #define LIS2HH12_REG_FIFO_stream		01001000b	// to set fifo in Stream mode, just for testing
 
-/* Mode for MMA7660. */
-#define ACTIVE_MODE 1u
-
-/*Failure flag for reading from accelerometer. */
-#define MMA7660_FAILURE_FLAG (1u << 6)
-
-/*Tilt specific bits*/
-#define TILT_TAP_MASK (1U << 5)
-#define TILT_SHAKE_MASK (1U << 7)
-
-// [max 255, otherwise "int16_t" won't be sufficient to hold the sum
-//  of accelerometer samples]
-#define NUMBER_OF_SAMPLES 20
-
 /* Define version of GCC. */
 #define GCC_VERSION (__GNUC__ * 10000 \
                      + __GNUC_MINOR__ * 100 \
                      + __GNUC_PATCHLEVEL__)
 
-/**
- * @brief Structure for holding sum of samples from accelerometer.
- */
-typedef struct {
-	int16_t x;
-	int16_t y;
-	int16_t z;
-} sum_t;
-static sum_t m_sum = {0};
-
-/**
- * @brief Union to keep raw and converted data from accelerometer samples at one memory space.
- */
-typedef union {
-	uint8_t raw;
-	int8_t conv;
-} elem_t;
-
-/**
- * @brief Enum for selecting accelerometer orientation.
- */
-typedef enum {
-	LEFT = 1, RIGHT = 2, DOWN = 5, UP = 6
-} accelerometer_orientation_t;
-
-/**
- * @brief Structure for holding samples from accelerometer.
- */
-typedef struct {
-	elem_t x;
-	elem_t y;
-	elem_t z;
-	uint8_t tilt;
-} sample_t;
 
 #ifdef __GNUC_PATCHLEVEL__
 #if GCC_VERSION < 50505
@@ -145,17 +97,13 @@ typedef struct {
 #pragma GCC diagnostic ignored "-Wmissing-braces"           // Hack to GCC 4.9.3 bug. Can be deleted after switch on using GCC 5.0.0
 #endif
 #endif
-/* Buffer for samples. */
-static sample_t m_sample_buffer[NUMBER_OF_SAMPLES] = {0};
+
 #ifdef __GNUC_PATCHLEVEL__
 #if GCC_VERSION < 50505
 #pragma GCC diagnostic pop
 #endif
 #endif
-/* Indicates if reading operation from accelerometer has ended. */
-static volatile bool m_xfer_done = true;
-/* Indicates if setting mode operation has ended. */
-static volatile bool m_set_mode_done = false;
+
 /* TWI instance. */
 
 static const nrf_drv_twi_t m_twi_LIS2HH12 = NRF_DRV_TWI_INSTANCE(0);
@@ -197,46 +145,6 @@ static void uart_config(void) {
 	APP_ERROR_CHECK(err_code);
 }
 
-
-
-/**
- * @brief TWI events handler.
- */
-
-void twi_handler(nrf_drv_twi_evt_t const * p_event, void * p_context) {
-	ret_code_t err_code;
-	static uint8_t result;
-
-	NRF_LOG_PRINTF("\n\rtwi handler event:%d\r\n", p_event->type);
-
-	switch (p_event->type) {
-	case NRF_DRV_TWI_EVT_DONE:
-		if ((p_event->type == NRF_DRV_TWI_EVT_DONE)
-				&& (p_event->xfer_desc.type == NRF_DRV_TWI_XFER_TX)) {
-			if (m_set_mode_done != true) {
-				m_set_mode_done = true;
-				return;
-			}
-			m_xfer_done = false;
-			/* Read 4 bytes from the specified address. */
-			err_code = nrf_drv_twi_rx(&m_twi_LIS2HH12, LIS2HH12_ADDR, (uint8_t*) &result, sizeof(result));
-			APP_ERROR_CHECK(err_code);
-			NRF_LOG_PRINTF("\n\rtwi handler nrf_drv_twi_rx result:%d\r\n", result);
-		} else {
-			//read_data(&m_sample);
-			/*NRF_LOG_PRINTF("m_sample->x :%d\r\n", m_sample.x);
-			 NRF_LOG_PRINTF("m_sample->y :%d\r\n", m_sample.y);
-			 NRF_LOG_PRINTF("m_sample->z :%d\r\n", m_sample.z);
-			 NRF_LOG_PRINTF("m_sample->tilt :%d\r\n", m_sample.tilt);*/
-			m_xfer_done = true;
-		}
-		break;
-	default:
-
-		break;
-	}
-}
-
 /**
  * @brief UART initialization.
  */
@@ -265,7 +173,7 @@ int main(void) {
 
 	uart_config();
 
-	NRF_LOG_PRINTF("\n\rTWI sensor example\r\n");
+	NRF_LOG_PRINTF("\n\rLIS2HH12 accelerometer example\r\n");
 	twi_init();
 
 	uint8_t reg = LIS2HH12_REG_WHO_AM_I;
@@ -278,7 +186,7 @@ int main(void) {
 
 		err_code = nrf_drv_twi_tx(&m_twi_LIS2HH12, LIS2HH12_ADDR, &reg,	sizeof(reg), true);
 		APP_ERROR_CHECK(err_code);
-		NRF_LOG_PRINTF("nrf_drv_twi_tx reg:%d\r\n", reg);
+		NRF_LOG_PRINTF("nrf_drv_twi_tx err_code:%d\r\n", reg);
 
 		err_code = nrf_drv_twi_rx(&m_twi_LIS2HH12, LIS2HH12_ADDR, (uint8_t*)&res, sizeof(res));
 		APP_ERROR_CHECK(err_code);
