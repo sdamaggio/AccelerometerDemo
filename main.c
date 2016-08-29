@@ -21,6 +21,8 @@
  */
 
 #include <stdio.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include "boards.h"
 #include "app_util_platform.h"
 #include "app_uart.h"
@@ -42,70 +44,68 @@ const uint8_t leds_list[LEDS_NUMBER] = LEDS_LIST;
 #define UART_RX_BUF_SIZE 1
 
 
-/*Common addresses definition for accelereometer LIS2HH12. */
-#define LIS2HH12_ADDR				0x1E	// 7bit I2C address
+/*Common addresses definition for accelerometer LIS2HH12. */
+#define _LIS2HH12_ADDR				0x1E	// 7bit I2C address
 
-#define LIS2HH12_REG_TEMP_L			0x0B
-#define LIS2HH12_REG_TEMP_H			0x0C
-#define LIS2HH12_REG_WHO_AM_I		0x0F
-#define LIS2HH12_REG_ACT_THS		0x1E
-#define LIS2HH12_REG_ACT_DUR		0x1F
-#define LIS2HH12_REG_CTRL1			0x20
-#define LIS2HH12_REG_CTRL2			0x21
-#define LIS2HH12_REG_CTRL3			0x22
-#define LIS2HH12_REG_CTRL4			0x23
-#define LIS2HH12_REG_CTRL5			0x24
-#define LIS2HH12_REG_CTRL6			0x25
-#define LIS2HH12_REG_CTRL7			0x26
-#define LIS2HH12_REG_STATUS			0x27
-#define LIS2HH12_REG_OUT_X_L		0x28
-#define LIS2HH12_REG_OUT_X_H		0x29
-#define LIS2HH12_REG_OUT_Y_L		0x2A
-#define LIS2HH12_REG_OUT_Y_H		0x2B
-#define LIS2HH12_REG_OUT_Z_L		0x2C
-#define LIS2HH12_REG_OUT_Z_H		0x2D
-#define LIS2HH12_REG_FIFO_CTRL		0x2E
-#define LIS2HH12_REG_FIFO_SRC		0x2F
-#define LIS2HH12_REG_IG_CFG1		0x30
-#define LIS2HH12_REG_IG_SRC1		0x31
-#define LIS2HH12_REG_IG_THS_X1		0x32
-#define LIS2HH12_REG_IG_THS_Y1		0x33
-#define LIS2HH12_REG_IG_THS_Z1		0x34
-#define LIS2HH12_REG_IG_DUR1		0x35
-#define LIS2HH12_REG_IG_CFG2		0x36
-#define LIS2HH12_REG_SRC2			0x37
-#define LIS2HH12_REG_IG_THS2		0x38
-#define LIS2HH12_REG_IG_DUR2		0x39
-#define LIS2HH12_REG_XL_REFERENCE	0x3A
-#define LIS2HH12_REG_XH_REFERENCE	0x3B
-#define LIS2HH12_REG_YL_REFERENCE	0x3C
-#define LIS2HH12_REG_YH_REFERENCE	0x3D
-#define LIS2HH12_REG_ZL_REFERENCE	0x3E
-#define LIS2HH12_REG_ZH_REFERENCE	0x3F
+#define _LIS2HH12_REG_TEMP_L		0x0B
+#define _LIS2HH12_REG_TEMP_H		0x0C
+#define _LIS2HH12_REG_WHO_AM_I		0x0F
+#define _LIS2HH12_REG_ACT_THS		0x1E
+#define _LIS2HH12_REG_ACT_DUR		0x1F
+#define _LIS2HH12_REG_CTRL1			0x20
+#define _LIS2HH12_REG_CTRL2			0x21
+#define _LIS2HH12_REG_CTRL3			0x22
+#define _LIS2HH12_REG_CTRL4			0x23
+#define _LIS2HH12_REG_CTRL5			0x24
+#define _LIS2HH12_REG_CTRL6			0x25
+#define _LIS2HH12_REG_CTRL7			0x26
+#define _LIS2HH12_REG_STATUS		0x27
+#define _LIS2HH12_REG_OUT_X_L		0x28
+#define _LIS2HH12_REG_OUT_X_H		0x29
+#define _LIS2HH12_REG_OUT_Y_L		0x2A
+#define _LIS2HH12_REG_OUT_Y_H		0x2B
+#define _LIS2HH12_REG_OUT_Z_L		0x2C
+#define _LIS2HH12_REG_OUT_Z_H		0x2D
+#define _LIS2HH12_REG_FIFO_CTRL		0x2E
+#define _LIS2HH12_REG_FIFO_SRC		0x2F
+#define _LIS2HH12_REG_IG_CFG1		0x30
+#define _LIS2HH12_REG_IG_SRC1		0x31
+#define _LIS2HH12_REG_IG_THS_X1		0x32
+#define _LIS2HH12_REG_IG_THS_Y1		0x33
+#define _LIS2HH12_REG_IG_THS_Z1		0x34
+#define _LIS2HH12_REG_IG_DUR1		0x35
+#define _LIS2HH12_REG_IG_CFG2		0x36
+#define _LIS2HH12_REG_SRC2			0x37
+#define _LIS2HH12_REG_IG_THS2		0x38
+#define _LIS2HH12_REG_IG_DUR2		0x39
+#define _LIS2HH12_REG_XL_REFERENCE	0x3A
+#define _LIS2HH12_REG_XH_REFERENCE	0x3B
+#define _LIS2HH12_REG_YL_REFERENCE	0x3C
+#define _LIS2HH12_REG_YH_REFERENCE	0x3D
+#define _LIS2HH12_REG_ZL_REFERENCE	0x3E
+#define _LIS2HH12_REG_ZH_REFERENCE	0x3F
 
-#define LIS2HH12_REG_FIFO_stream		01001000b	// to set fifo in Stream mode, just for testing
-
-/* Define version of GCC. */
-#define GCC_VERSION (__GNUC__ * 10000 \
-                     + __GNUC_MINOR__ * 100 \
-                     + __GNUC_PATCHLEVEL__)
+#define	_LIS2HH12_ODR_MASK			0x8F
+#define	_LIS2HH12_ODR_SHIFT			4
 
 
-#ifdef __GNUC_PATCHLEVEL__
-#if GCC_VERSION < 50505
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-braces"           // Hack to GCC 4.9.3 bug. Can be deleted after switch on using GCC 5.0.0
-#endif
-#endif
+/**
+ * @brief Enumeration which defines output data rates available on the LIS2HH12 accelerometer.
+ */
+typedef enum _Lis2OutputDataRate
+{
+	LIS2_POWERDOWN, /**<  */
+	LIS2_ODR10HZ,
+	LIS2_ODR50HZ,
+	LIS2_ODR100HZ,
+	LIS2_ODR200HZ,
+	LIS2_ODR400HZ,
+	LIS2_ODR800HZ,
+} Lis2OutputDataRate;
 
-#ifdef __GNUC_PATCHLEVEL__
-#if GCC_VERSION < 50505
-#pragma GCC diagnostic pop
-#endif
-#endif
+uint16_t lis2Accel[3];
 
 /* TWI instance. */
-
 static const nrf_drv_twi_t m_twi_LIS2HH12 = NRF_DRV_TWI_INSTANCE(0);
 
 /**
@@ -135,7 +135,8 @@ static void uart_config(void) {
 	RX_PIN_NUMBER,
 	TX_PIN_NUMBER,
 	RTS_PIN_NUMBER,
-	CTS_PIN_NUMBER, APP_UART_FLOW_CONTROL_DISABLED,
+	CTS_PIN_NUMBER,
+	APP_UART_FLOW_CONTROL_DISABLED,
 	false,
 	UART_BAUDRATE_BAUDRATE_Baud115200 };
 
@@ -148,8 +149,7 @@ static void uart_config(void) {
 /**
  * @brief UART initialization.
  */
-
-void twi_init(void) {
+void twi_init() {
 	ret_code_t err_code;
 
 	const nrf_drv_twi_config_t twi_LIS2HH12_config = { .scl =
@@ -158,9 +158,98 @@ void twi_init(void) {
 
 	err_code = nrf_drv_twi_init(&m_twi_LIS2HH12, &twi_LIS2HH12_config, NULL, NULL);
 	APP_ERROR_CHECK(err_code);
-	NRF_LOG_PRINTF("twi_init returns:%d\r\n", err_code);
 
 	nrf_drv_twi_enable(&m_twi_LIS2HH12);
+}
+
+/**
+ * @brief Function to read lis2 accelerometer register
+ */
+static int _lis2ReadReg(uint8_t regAddr, uint8_t) {
+	uint8_t res = 0;
+	ret_code_t errCode;
+
+	errCode = nrf_drv_twi_tx(&m_twi_LIS2HH12, _LIS2HH12_ADDR, &regAddr, sizeof(regAddr), true);
+	APP_ERROR_CHECK(errCode);
+
+	errCode = nrf_drv_twi_rx(&m_twi_LIS2HH12, _LIS2HH12_ADDR, (uint8_t*)&res, sizeof(res));
+	APP_ERROR_CHECK(errCode);
+	//NRF_LOG_PRINTF("\n\rnrf_drv_twi_rx result:%02x err_code: %d\r\n", res, err_code);
+
+	return res;
+}
+
+/**
+ * @brief Function to write lis2 accelerometer register
+ */
+static bool _lis2WriteReg(uint8_t regAddr, uint8_t regValue) {
+	ret_code_t errCode;
+	uint8_t reg[2] = {regAddr, regValue};
+
+	errCode = nrf_drv_twi_tx(&m_twi_LIS2HH12, _LIS2HH12_ADDR, reg, sizeof(reg), true);
+	APP_ERROR_CHECK(errCode);
+
+	//NRF_LOG_PRINTF("\n\rnrf_drv_twi_rx result:%02x err_code: %d\r\n", res, err_code);
+	return true;
+}
+
+/**
+ * @brief Function to set lis2 output data rate
+ */
+bool lis2SetOutputDataRate(Lis2OutputDataRate odr) {
+	uint8_t regCtrl1 = -1;
+	uint8_t odrValue = 0;
+
+	regCtrl1 = _lis2ReadReg(_LIS2HH12_REG_CTRL1);
+
+	if(regCtrl1 == -1) {
+		NRF_LOG_PRINTF("set_odr(): LIS2HH12_REG_CTRL1 read unsuccessful!");
+		return false;
+	}
+
+	switch(odr) {
+		case LIS2_POWERDOWN: odrValue = 0;
+			break;
+		case LIS2_ODR10HZ: odrValue = 1;
+			break;
+		case LIS2_ODR50HZ: odrValue = 2;
+			break;
+		case LIS2_ODR100HZ: odrValue = 3;
+			break;
+		case LIS2_ODR200HZ: odrValue = 4;
+			break;
+		case LIS2_ODR400HZ: odrValue = 5;
+		  	break;
+		case LIS2_ODR800HZ: odrValue = 6;
+		  	break;
+	    default: NRF_LOG_PRINTF("lis2SetOutputDataRate: Invalid odr value\n"); return false;
+	    	break;
+	}
+
+	//NRF_LOG_PRINTF("odr_value %02x\n", odrValue);
+	//NRF_LOG_PRINTF("reg_ctrl1 %02x\n", regCtrl1);
+	//NRF_LOG_PRINTF(" (reg_ctrl1 & odr_mask) %02x\n", (regCtrl1 & odrMask));
+	//NRF_LOG_PRINTF("(odr_value << 4) %02x\n", (odrValue << 4));
+
+	//NRF_LOG_PRINTF("odr result: %02x\n", (regCtrl1 & odrMask) | (odrValue << 4));
+
+	_lis2WriteReg(_LIS2HH12_REG_CTRL1, (regCtrl1 & _LIS2HH12_ODR_MASK) | (odrValue << _LIS2HH12_ODR_SHIFT));
+
+	return true;
+}
+
+/**
+ * @brief Function to update lis2 x, y and z acceleration readings
+ */
+void lis2Update() {
+	lis2Accel[0] = (_lis2ReadReg(_LIS2HH12_REG_OUT_X_H) << 8 | _lis2ReadReg(_LIS2HH12_REG_OUT_X_L));
+	NRF_LOG_PRINTF("X value:%04x \r\n", lis2Accel[0]);
+
+	lis2Accel[1] = (_lis2ReadReg(_LIS2HH12_REG_OUT_Y_H) << 8 | _lis2ReadReg(_LIS2HH12_REG_OUT_Y_L));
+	NRF_LOG_PRINTF("Y register:%04x \r\n", lis2Accel[1]);
+
+	lis2Accel[2] = (_lis2ReadReg(_LIS2HH12_REG_OUT_Z_H) << 8 | _lis2ReadReg(_LIS2HH12_REG_OUT_Z_L));
+	NRF_LOG_PRINTF("Z register:%04x \r\n", lis2Accel[2]);
 }
 
 /**
@@ -176,22 +265,21 @@ int main(void) {
 	NRF_LOG_PRINTF("\n\rLIS2HH12 accelerometer example\r\n");
 	twi_init();
 
-	uint8_t reg = LIS2HH12_REG_WHO_AM_I;
-	uint8_t res = 0;
-	ret_code_t err_code;
+	lis2SetOutputDataRate(LIS2_ODR10HZ);
+	lis2Update();
 
-	while (true) {
-		nrf_delay_ms(1000);
-		// Start transaction with a slave with the specified address.
 
-		err_code = nrf_drv_twi_tx(&m_twi_LIS2HH12, LIS2HH12_ADDR, &reg,	sizeof(reg), true);
-		APP_ERROR_CHECK(err_code);
-		NRF_LOG_PRINTF("nrf_drv_twi_tx err_code:%d\r\n", reg);
+	while(true) {
 
-		err_code = nrf_drv_twi_rx(&m_twi_LIS2HH12, LIS2HH12_ADDR, (uint8_t*)&res, sizeof(res));
-		APP_ERROR_CHECK(err_code);
-		NRF_LOG_PRINTF("\n\rnrf_drv_twi_rx result:%02x err_code: %d\r\n", res, err_code);
+		lis2Update();
 
+		uint16_t temp_val = -1;
+		temp_val = (_lis2ReadReg(_LIS2HH12_REG_TEMP_H) << 8 | _lis2ReadReg(_LIS2HH12_REG_TEMP_L));
+		NRF_LOG_PRINTF("temp register:%04x \r\n", temp_val);
+
+		NRF_LOG_PRINTF("\r\n");
+		LEDS_INVERT(1 << leds_list[0]);
+		nrf_delay_ms(5000);
 	}
 }
 
