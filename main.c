@@ -45,56 +45,56 @@ const uint8_t leds_list[LEDS_NUMBER] = LEDS_LIST;
 
 
 /*Common addresses definition for accelerometer LIS2HH12. */
-#define _LIS2HH12_ADDR				0x1E	// 7bit I2C address
+#define _LIS2_ADDR				0x1E	// 7bit I2C address
 
-#define _LIS2HH12_REG_TEMP_L		0x0B
-#define _LIS2HH12_REG_TEMP_H		0x0C
-#define _LIS2HH12_REG_WHO_AM_I		0x0F
-#define _LIS2HH12_REG_ACT_THS		0x1E
-#define _LIS2HH12_REG_ACT_DUR		0x1F
-#define _LIS2HH12_REG_CTRL1			0x20
-#define _LIS2HH12_REG_CTRL2			0x21
-#define _LIS2HH12_REG_CTRL3			0x22
-#define _LIS2HH12_REG_CTRL4			0x23
-#define _LIS2HH12_REG_CTRL5			0x24
-#define _LIS2HH12_REG_CTRL6			0x25
-#define _LIS2HH12_REG_CTRL7			0x26
-#define _LIS2HH12_REG_STATUS		0x27
-#define _LIS2HH12_REG_OUT_X_L		0x28
-#define _LIS2HH12_REG_OUT_X_H		0x29
-#define _LIS2HH12_REG_OUT_Y_L		0x2A
-#define _LIS2HH12_REG_OUT_Y_H		0x2B
-#define _LIS2HH12_REG_OUT_Z_L		0x2C
-#define _LIS2HH12_REG_OUT_Z_H		0x2D
-#define _LIS2HH12_REG_FIFO_CTRL		0x2E
-#define _LIS2HH12_REG_FIFO_SRC		0x2F
-#define _LIS2HH12_REG_IG_CFG1		0x30
-#define _LIS2HH12_REG_IG_SRC1		0x31
-#define _LIS2HH12_REG_IG_THS_X1		0x32
-#define _LIS2HH12_REG_IG_THS_Y1		0x33
-#define _LIS2HH12_REG_IG_THS_Z1		0x34
-#define _LIS2HH12_REG_IG_DUR1		0x35
-#define _LIS2HH12_REG_IG_CFG2		0x36
-#define _LIS2HH12_REG_SRC2			0x37
-#define _LIS2HH12_REG_IG_THS2		0x38
-#define _LIS2HH12_REG_IG_DUR2		0x39
-#define _LIS2HH12_REG_XL_REFERENCE	0x3A
-#define _LIS2HH12_REG_XH_REFERENCE	0x3B
-#define _LIS2HH12_REG_YL_REFERENCE	0x3C
-#define _LIS2HH12_REG_YH_REFERENCE	0x3D
-#define _LIS2HH12_REG_ZL_REFERENCE	0x3E
-#define _LIS2HH12_REG_ZH_REFERENCE	0x3F
+#define _LIS2_REG_TEMP_L		0x0B
+#define _LIS2_REG_TEMP_H		0x0C
+#define _LIS2_REG_WHO_AM_I		0x0F
+#define _LIS2_REG_ACT_THS		0x1E
+#define _LIS2_REG_ACT_DUR		0x1F
+#define _LIS2_REG_CTRL1			0x20
+#define _LIS2_REG_CTRL2			0x21
+#define _LIS2_REG_CTRL3			0x22
+#define _LIS2_REG_CTRL4			0x23
+#define _LIS2_REG_CTRL5			0x24
+#define _LIS2_REG_CTRL6			0x25
+#define _LIS2_REG_CTRL7			0x26
+#define _LIS2_REG_STATUS		0x27
+#define _LIS2_REG_OUT_X_L		0x28
+#define _LIS2_REG_OUT_X_H		0x29
+#define _LIS2_REG_OUT_Y_L		0x2A
+#define _LIS2_REG_OUT_Y_H		0x2B
+#define _LIS2_REG_OUT_Z_L		0x2C
+#define _LIS2_REG_OUT_Z_H		0x2D
+#define _LIS2_REG_FIFO_CTRL		0x2E
+#define _LIS2_REG_FIFO_SRC		0x2F
+#define _LIS2_REG_IG_CFG1		0x30
+#define _LIS2_REG_IG_SRC1		0x31
+#define _LIS2_REG_IG_THS_X1		0x32
+#define _LIS2_REG_IG_THS_Y1		0x33
+#define _LIS2_REG_IG_THS_Z1		0x34
+#define _LIS2_REG_IG_DUR1		0x35
+#define _LIS2_REG_IG_CFG2		0x36
+#define _LIS2_REG_SRC2			0x37
+#define _LIS2_REG_IG_THS2		0x38
+#define _LIS2_REG_IG_DUR2		0x39
+#define _LIS2_REG_XL_REFERENCE	0x3A
+#define _LIS2_REG_XH_REFERENCE	0x3B
+#define _LIS2_REG_YL_REFERENCE	0x3C
+#define _LIS2_REG_YH_REFERENCE	0x3D
+#define _LIS2_REG_ZL_REFERENCE	0x3E
+#define _LIS2_REG_ZH_REFERENCE	0x3F
 
-#define	_LIS2HH12_ODR_MASK			0x8F
-#define	_LIS2HH12_ODR_SHIFT			4
+#define	_LIS2_ODR_MASK			0x8F
+#define	_LIS2_ODR_SHIFT			4
 
 
 /**
- * @brief Enumeration which defines output data rates available on the LIS2HH12 accelerometer.
+ * @brief Enumerator which defines output data rates available for the LIS2HH12 accelerometer.
  */
 typedef enum _Lis2OutputDataRate
 {
-	LIS2_POWERDOWN, /**<  */
+	LIS2_POWERDOWN,
 	LIS2_ODR10HZ,
 	LIS2_ODR50HZ,
 	LIS2_ODR100HZ,
@@ -103,15 +103,17 @@ typedef enum _Lis2OutputDataRate
 	LIS2_ODR800HZ,
 } Lis2OutputDataRate;
 
-uint16_t lis2Accel[3];
+int16_t lis2Accel[3];
+int16_t lis2Temp;
 
 /* TWI instance. */
-static const nrf_drv_twi_t m_twi_LIS2HH12 = NRF_DRV_TWI_INSTANCE(0);
+static const nrf_drv_twi_t m_twi_LIS2 = NRF_DRV_TWI_INSTANCE(0);
 
 /**
  * @brief UART events handler.
  */
-static void uart_events_handler(app_uart_evt_t * p_event) {
+static void uart_events_handler(app_uart_evt_t * p_event)
+{
 	switch (p_event->evt_type) {
 	case APP_UART_COMMUNICATION_ERROR:
 		APP_ERROR_HANDLER(p_event->data.error_communication);
@@ -129,7 +131,8 @@ static void uart_events_handler(app_uart_evt_t * p_event) {
 /**
  * @brief UART initialization.
  */
-static void uart_config(void) {
+static void uart_config(void)
+{
 	uint32_t err_code;
 	const app_uart_comm_params_t comm_params = {
 	RX_PIN_NUMBER,
@@ -149,30 +152,34 @@ static void uart_config(void) {
 /**
  * @brief UART initialization.
  */
-void twi_init() {
+static void twi_init()
+{
 	ret_code_t err_code;
 
-	const nrf_drv_twi_config_t twi_LIS2HH12_config = { .scl =
+	const nrf_drv_twi_config_t twi_LIS2_config = { .scl =
 			ARDUINO_I2C_SCL_PIN, .sda = ARDUINO_I2C_SDA_PIN, .frequency =
 			NRF_TWI_FREQ_100K, .interrupt_priority = APP_IRQ_PRIORITY_HIGH };
 
-	err_code = nrf_drv_twi_init(&m_twi_LIS2HH12, &twi_LIS2HH12_config, NULL, NULL);
+	err_code = nrf_drv_twi_init(&m_twi_LIS2, &twi_LIS2_config, NULL, NULL);
 	APP_ERROR_CHECK(err_code);
 
-	nrf_drv_twi_enable(&m_twi_LIS2HH12);
+	nrf_drv_twi_enable(&m_twi_LIS2);
 }
 
 /**
  * @brief Function to read lis2 accelerometer register
+ *
+ * @param regAddr register address to be read
  */
-static int _lis2ReadReg(uint8_t regAddr, uint8_t) {
+static int _lis2ReadReg(uint8_t regAddr)
+{
 	uint8_t res = 0;
 	ret_code_t errCode;
 
-	errCode = nrf_drv_twi_tx(&m_twi_LIS2HH12, _LIS2HH12_ADDR, &regAddr, sizeof(regAddr), true);
+	errCode = nrf_drv_twi_tx(&m_twi_LIS2, _LIS2_ADDR, &regAddr, sizeof(regAddr), true);
 	APP_ERROR_CHECK(errCode);
 
-	errCode = nrf_drv_twi_rx(&m_twi_LIS2HH12, _LIS2HH12_ADDR, (uint8_t*)&res, sizeof(res));
+	errCode = nrf_drv_twi_rx(&m_twi_LIS2, _LIS2_ADDR, (uint8_t*)&res, sizeof(res));
 	APP_ERROR_CHECK(errCode);
 	//NRF_LOG_PRINTF("\n\rnrf_drv_twi_rx result:%02x err_code: %d\r\n", res, err_code);
 
@@ -181,26 +188,27 @@ static int _lis2ReadReg(uint8_t regAddr, uint8_t) {
 
 /**
  * @brief Function to write lis2 accelerometer register
+ *
+ * @param regAddr	address of the register to be written
+ * @param regValue 	register value to be written
  */
-static bool _lis2WriteReg(uint8_t regAddr, uint8_t regValue) {
-	ret_code_t errCode;
-	uint8_t reg[2] = {regAddr, regValue};
-
-	errCode = nrf_drv_twi_tx(&m_twi_LIS2HH12, _LIS2HH12_ADDR, reg, sizeof(reg), true);
-	APP_ERROR_CHECK(errCode);
-
-	//NRF_LOG_PRINTF("\n\rnrf_drv_twi_rx result:%02x err_code: %d\r\n", res, err_code);
-	return true;
+static void _lis2WriteReg(uint8_t regAddr, uint8_t regValue)
+{
+	APP_ERROR_CHECK(nrf_drv_twi_tx(&m_twi_LIS2, _LIS2_ADDR, (uint8_t[]){regAddr, regValue}, sizeof((uint8_t[]){regAddr, regValue}), true));
 }
 
 /**
  * @brief Function to set lis2 output data rate
+ *
+ * Set by default to LIS2_POWERDOWN.
+ * The higher the frequency the higher the power consumption.
  */
-bool lis2SetOutputDataRate(Lis2OutputDataRate odr) {
-	uint8_t regCtrl1 = -1;
-	uint8_t odrValue = 0;
+bool lis2SetOutputDataRate(Lis2OutputDataRate odr)
+{
+	static uint8_t regCtrl1 = -1;
+	static uint8_t odrValue = 0;
 
-	regCtrl1 = _lis2ReadReg(_LIS2HH12_REG_CTRL1);
+	regCtrl1 = _lis2ReadReg(_LIS2_REG_CTRL1);
 
 	if(regCtrl1 == -1) {
 		NRF_LOG_PRINTF("set_odr(): LIS2HH12_REG_CTRL1 read unsuccessful!");
@@ -226,14 +234,7 @@ bool lis2SetOutputDataRate(Lis2OutputDataRate odr) {
 	    	break;
 	}
 
-	//NRF_LOG_PRINTF("odr_value %02x\n", odrValue);
-	//NRF_LOG_PRINTF("reg_ctrl1 %02x\n", regCtrl1);
-	//NRF_LOG_PRINTF(" (reg_ctrl1 & odr_mask) %02x\n", (regCtrl1 & odrMask));
-	//NRF_LOG_PRINTF("(odr_value << 4) %02x\n", (odrValue << 4));
-
-	//NRF_LOG_PRINTF("odr result: %02x\n", (regCtrl1 & odrMask) | (odrValue << 4));
-
-	_lis2WriteReg(_LIS2HH12_REG_CTRL1, (regCtrl1 & _LIS2HH12_ODR_MASK) | (odrValue << _LIS2HH12_ODR_SHIFT));
+	_lis2WriteReg(_LIS2_REG_CTRL1, (regCtrl1 & _LIS2_ODR_MASK) | (odrValue << _LIS2_ODR_SHIFT));
 
 	return true;
 }
@@ -241,45 +242,67 @@ bool lis2SetOutputDataRate(Lis2OutputDataRate odr) {
 /**
  * @brief Function to update lis2 x, y and z acceleration readings
  */
-void lis2Update() {
-	lis2Accel[0] = (_lis2ReadReg(_LIS2HH12_REG_OUT_X_H) << 8 | _lis2ReadReg(_LIS2HH12_REG_OUT_X_L));
-	NRF_LOG_PRINTF("X value:%04x \r\n", lis2Accel[0]);
+void lis2Update()
+{
+/*
+ * The last X, Y and Z values. Each item is 10, two's complement notation, running from -32738 to
+ * +32737, which translates to -2g to ~ +2g. The resolution is therefore is 4G / (2^16 - 1), i.e. 0.061mG
+ * per step.
+ */
+	int16_t regX = (_lis2ReadReg(_LIS2_REG_OUT_X_H) << 8 | _lis2ReadReg(_LIS2_REG_OUT_X_L));
+	int16_t regY = (_lis2ReadReg(_LIS2_REG_OUT_Y_H) << 8 | _lis2ReadReg(_LIS2_REG_OUT_Y_L));
+	int16_t regZ = (_lis2ReadReg(_LIS2_REG_OUT_Z_H) << 8 | _lis2ReadReg(_LIS2_REG_OUT_Z_L));
 
-	lis2Accel[1] = (_lis2ReadReg(_LIS2HH12_REG_OUT_Y_H) << 8 | _lis2ReadReg(_LIS2HH12_REG_OUT_Y_L));
-	NRF_LOG_PRINTF("Y register:%04x \r\n", lis2Accel[1]);
+	int32_t xVal = (regX * 61) / 1000;
+	int32_t yVal = (regY * 61) / 1000;
+	int32_t zVal = (regZ * 61) / 1000;
 
-	lis2Accel[2] = (_lis2ReadReg(_LIS2HH12_REG_OUT_Z_H) << 8 | _lis2ReadReg(_LIS2HH12_REG_OUT_Z_L));
-	NRF_LOG_PRINTF("Z register:%04x \r\n", lis2Accel[2]);
+	lis2Accel[0] = (int16_t)xVal;
+	lis2Accel[1] = (int16_t)yVal;
+	lis2Accel[2] = (int16_t)zVal;
 }
+
+/**
+ * @brief Function to update lis2 temperature reading
+ *
+ * Temperature value is stored in 2 8bit registers, 16 bit total
+ * Resolution is 11 bit expressed in two's complement
+ * Range is from -40 to +85 °C so 125 total, 0 is at ((40+85)/2)+40=22.5°C
+ * Ratio is then 0.061035°C/bit
+ * Tout = (int_16)value * ratio + 22.5°C
+ */
+void lis2UpdateTemp()
+{
+	int16_t temp_val = 0;
+
+	temp_val = (_lis2ReadReg(_LIS2_REG_TEMP_H) << 8 | _lis2ReadReg(_LIS2_REG_TEMP_L));
+	NRF_LOG_PRINTF("temp register: %d\r\n", temp_val);
+
+	lis2Temp = temp_val;
+}
+
 
 /**
  * @brief Function for main application entry.
  */
 
 int main(void) {
-	// Configure LED-pins as outputs for debugging.
-	LEDS_CONFIGURE(LEDS_MASK);
 
 	uart_config();
-
-	NRF_LOG_PRINTF("\n\rLIS2HH12 accelerometer example\r\n");
 	twi_init();
-
 	lis2SetOutputDataRate(LIS2_ODR10HZ);
 	lis2Update();
 
-
 	while(true) {
-
+		NRF_LOG_PRINTF("\n\rLIS2HH12 accelerometer library demo\r\n");
 		lis2Update();
-
-		uint16_t temp_val = -1;
-		temp_val = (_lis2ReadReg(_LIS2HH12_REG_TEMP_H) << 8 | _lis2ReadReg(_LIS2HH12_REG_TEMP_L));
-		NRF_LOG_PRINTF("temp register:%04x \r\n", temp_val);
+		NRF_LOG_PRINTF("X acceleration:%d mG\r\n", lis2Accel[0]);
+		NRF_LOG_PRINTF("Y acceleration:%d mG\r\n", lis2Accel[1]);
+		NRF_LOG_PRINTF("Z acceleration:%d mG\r\n", lis2Accel[2]);
+		//lis2UpdateTemp();
 
 		NRF_LOG_PRINTF("\r\n");
-		LEDS_INVERT(1 << leds_list[0]);
-		nrf_delay_ms(5000);
+		nrf_delay_ms(2000);
 	}
 }
 
