@@ -22,6 +22,8 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <float.h>
+#include <math.h>
 #include "boards.h"
 #include "app_util_platform.h"
 #include "app_uart.h"
@@ -30,9 +32,7 @@
 #include "nrf_delay.h"
 #include "nrf_gpio.h"
 #include "nrf_log.h"
-
-#include <float.h>
-#include <math.h>
+#include "lis2.h"
 
 const uint8_t leds_list[LEDS_NUMBER] = LEDS_LIST;
 
@@ -90,22 +90,8 @@ const uint8_t leds_list[LEDS_NUMBER] = LEDS_LIST;
 #define	_LIS2_ODR_MASK			0x8F
 #define	_LIS2_ODR_SHIFT			4
 
-/**
- * @brief Enumerator which defines output data rates available for the LIS2HH12 accelerometer.
- */
-typedef enum _Lis2OutputDataRate
-{
-	LIS2_POWERDOWN,
-	LIS2_ODR10HZ,
-	LIS2_ODR50HZ,
-	LIS2_ODR100HZ,
-	LIS2_ODR200HZ,
-	LIS2_ODR400HZ,
-	LIS2_ODR800HZ,
-} Lis2OutputDataRate;
-
 int16_t lis2Accel[3];
-int16_t lis2Temp;
+float lis2Tilt;
 
 /* TWI instance. */
 static const nrf_drv_twi_t m_twi_LIS2 = NRF_DRV_TWI_INSTANCE(0);
@@ -188,14 +174,9 @@ void lis2Init()
 static int _lis2ReadReg(uint8_t regAddr)
 {
 	uint8_t res = 0;
-	ret_code_t errCode;
+	uint8_t arr[]={regAddr, res};
 
-	errCode = nrf_drv_twi_tx(&m_twi_LIS2, _LIS2_I2CADDR, &regAddr, sizeof(regAddr), true);
-	APP_ERROR_CHECK(errCode);
-
-	errCode = nrf_drv_twi_rx(&m_twi_LIS2, _LIS2_I2CADDR, (uint8_t*)&res, sizeof(res));
-	APP_ERROR_CHECK(errCode);
-	//NRF_LOG_PRINTF("\n\rnrf_drv_twi_rx result:%02x err_code: %d\r\n", res, err_code);
+	APP_ERROR_CHECK(nrf_drv_twi_tx(&m_twi_LIS2, _LIS2_I2CADDR, arr, sizeof(arr), false));
 
 	return res;
 }
@@ -217,7 +198,8 @@ static void _lis2WriteReg(uint8_t regAddr, uint8_t regValue)
  * Set by default to LIS2_POWERDOWN.
  * The higher the frequency the higher the power consumption.
  * 
- * @param odr selected Output Data Rate from available odr in enum Lis2OutputDataRate
+ * @param	odr selected Output Data Rate from available odr in enum Lis2OutputDataRate
+ * @return	true if successful, false otherwise
  */
 bool lis2SetOutputDataRate(Lis2OutputDataRate odr)
 {
@@ -255,6 +237,49 @@ bool lis2SetOutputDataRate(Lis2OutputDataRate odr)
 	return true;
 }
 
+
+/**
+ * @brief Function to update lis2 temperature reading
+ *
+ * WARNING: value seems to not make sense!
+ * Temperature value is stored in 2 8bit registers, 16 bit total
+ * Resolution is 11 bit expressed in two's complement
+ * Range is from -40 to +85 °C so 125 total, 0 is at ((40+85)/2)+40=22.5°C
+ * Ratio is then 0.061035°C/bit
+ * Tout = (int16_t)value * ratio + 22.5°C
+ *
+ * @return	int16_t temperature register value
+ */
+int16_t lis2GetTemp()
+{
+	int16_t temp_val = 0;
+
+	temp_val = (_lis2ReadReg(_LIS2_REG_TEMP_H) << 8 | _lis2ReadReg(_LIS2_REG_TEMP_L));
+	//NRF_LOG_PRINTF("temp register: %d\r\n", temp_val);
+
+	return temp_val;
+}
+
+/**
+ * @brief Function to calculate lis2 tilt angle from acceleration readings
+ *
+ * @return tilt angle in degrees
+ */
+static float _lis2GetTilt()
+{
+	/* tan(tilt) = sqrt(x^2+y^2)/z
+	 * tilt = atan( sqrt(x^2+y^2) / z )
+	 *
+	 * par1 = sqrt(x^2+y^2)
+	 */
+	float par1 = sqrtf(powf(lis2Accel[0],2) + powf(lis2Accel[1],2));
+	float tilt = atan2f(par1, lis2Accel[2]);
+
+	// convert from radians to degrees
+	return tilt * (180.0f / (float)M_PI);
+}
+
+
 /**
  * @brief Function to update lis2 x, y and z acceleration readings
  */
@@ -275,55 +300,17 @@ void lis2Update()
 	int32_t yVal = (regY * 1000) >> 14;
 	int32_t zVal = (regZ * 1000) >> 14;
 
-	/*NRF_LOG_PRINTF("X reg:%d       %x04\r\n", regX, regX);
-	NRF_LOG_PRINTF("Y reg:%d       %x04\r\n", regY, regY);
-	NRF_LOG_PRINTF("Z reg:%d       %x04\r\n", regZ, regZ);
-	NRF_LOG_PRINTF("sum: %d\r\n", xVal+yVal+zVal);*/
-
-
 	lis2Accel[0] = (int16_t)xVal;
 	lis2Accel[1] = (int16_t)yVal;
 	lis2Accel[2] = (int16_t)zVal;
-}
 
-/**
- * @brief Function to update lis2 temperature reading
- *
- * Temperature value is stored in 2 8bit registers, 16 bit total
- * Resolution is 11 bit expressed in two's complement
- * Range is from -40 to +85 °C so 125 total, 0 is at ((40+85)/2)+40=22.5°C
- * Ratio is then 0.061035°C/bit
- * Tout = (int_16)value * ratio + 22.5°C
- */
-void lis2UpdateTemp()
-{
-	int16_t temp_val = 0;
-
-	temp_val = (_lis2ReadReg(_LIS2_REG_TEMP_H) << 8 | _lis2ReadReg(_LIS2_REG_TEMP_L));
-	NRF_LOG_PRINTF("temp register: %d\r\n", temp_val);
-
-	lis2Temp = temp_val;
-}
-
-
-void lis2GetTiltAngle()
-{
-	/*
-	 * tan(angle) = sqrt(x^2+y^2)/z
-	 * angle = atan( sqrt(x^2+y^2) / z )
-	 * */
-
-	float par1 = sqrtf(powf(lis2Accel[0],2) + powf(lis2Accel[1],2));
-
-	float tilt = atan2f(par1, lis2Accel[2]) * (180.0f / M_PI);
-	printf("tilt: %f°\r\n", tilt);
-
+	// update tilt angle
+	lis2Tilt = _lis2GetTilt();
 }
 
 /**
  * @brief Function for main application entry.
  */
-
 int main(void) {
 
 	lis2Init();
@@ -334,12 +321,11 @@ int main(void) {
 		NRF_LOG_PRINTF("X acceleration:%d mG\r\n", lis2Accel[0]);
 		NRF_LOG_PRINTF("Y acceleration:%d mG\r\n", lis2Accel[1]);
 		NRF_LOG_PRINTF("Z acceleration:%d mG\r\n", lis2Accel[2]);
-		//lis2UpdateTemp();
-		lis2GetTiltAngle();
+		printf("tilt: %f°\r\n", lis2Tilt);
 
 		NRF_LOG_PRINTF("\r\n");
 		nrf_delay_ms(1000);
 	}
 }
 
-/** @} */
+
