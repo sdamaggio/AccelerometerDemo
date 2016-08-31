@@ -1,23 +1,22 @@
-/* Copyright (c) 2015 Nordic Semiconductor. All Rights Reserved.
+/* _________________________
  *
- * The information contained herein is property of Nordic Semiconductor ASA.
- * Terms and conditions of usage are described in detail in NORDIC
- * SEMICONDUCTOR STANDARD SOFTWARE LICENSE AGREEMENT.
+ *   Innoseis CONFIDENTIAL
+ * _________________________
  *
- * Licensees are granted free, non-transferable use of the information. NO
- * WARRANTY of ANY KIND is provided. This heading must NOT be removed from
- * the file.
+ *  Copyright 2013-2016 Innoseis B.V.
  *
- */
-
-/** @file
- * @defgroup tw_sensor_example main.c
- * @{
- * @ingroup nrf_twi_example
- * @brief TWI Sensor Example main file.
+ *  All Rights Reserved.
  *
- * This file contains the source code for a sample application using TWI.
+ * NOTICE:  All information contained herein is, and remains
+ * the property of Innoseis B.V..
+ * The intellectual and technical concepts contained herein are
+ * proprietary to Innoseis and may be covered by Dutch and Foreign
+ * Patents, patents in process, and are protected by trade secret
+ * or copyright law.
  *
+ * Dissemination of this information or reproduction of this material
+ * is strictly forbidden unless prior written permission is obtained
+ * from Innoseis B.V.
  */
 
 #include <stdio.h>
@@ -32,6 +31,9 @@
 #include "nrf_gpio.h"
 #include "nrf_log.h"
 
+#include <float.h>
+#include <math.h>
+
 const uint8_t leds_list[LEDS_NUMBER] = LEDS_LIST;
 
 
@@ -45,7 +47,7 @@ const uint8_t leds_list[LEDS_NUMBER] = LEDS_LIST;
 
 
 /*Common addresses definition for accelerometer LIS2HH12. */
-#define _LIS2_ADDR				0x1E	// 7bit I2C address
+#define _LIS2_I2CADDR				0x1E	// 7bit I2C address when pin SA0 is low, 0x1D when SA0 is high
 
 #define _LIS2_REG_TEMP_L		0x0B
 #define _LIS2_REG_TEMP_H		0x0C
@@ -87,7 +89,6 @@ const uint8_t leds_list[LEDS_NUMBER] = LEDS_LIST;
 
 #define	_LIS2_ODR_MASK			0x8F
 #define	_LIS2_ODR_SHIFT			4
-
 
 /**
  * @brief Enumerator which defines output data rates available for the LIS2HH12 accelerometer.
@@ -135,13 +136,14 @@ static void uart_config(void)
 {
 	uint32_t err_code;
 	const app_uart_comm_params_t comm_params = {
-	RX_PIN_NUMBER,
-	TX_PIN_NUMBER,
-	RTS_PIN_NUMBER,
-	CTS_PIN_NUMBER,
-	APP_UART_FLOW_CONTROL_DISABLED,
-	false,
-	UART_BAUDRATE_BAUDRATE_Baud115200 };
+		RX_PIN_NUMBER,
+		TX_PIN_NUMBER,
+		RTS_PIN_NUMBER,
+		CTS_PIN_NUMBER,
+		APP_UART_FLOW_CONTROL_DISABLED,
+		false,
+		UART_BAUDRATE_BAUDRATE_Baud115200
+	};
 
 	APP_UART_FIFO_INIT(&comm_params, UART_RX_BUF_SIZE, UART_TX_BUF_SIZE,
 			uart_events_handler, APP_IRQ_PRIORITY_LOW, err_code);
@@ -167,6 +169,18 @@ static void twi_init()
 }
 
 /**
+ * @brief Function to initialize the lis2 accelerometer
+ *
+ * Default initialization include +/-2g sensitivity, odr set to LIS2_POWERDOWN,
+ * FIFO set to Bypass mode and interrupts disabled
+ */
+void lis2Init()
+{
+	uart_config();
+	twi_init();	
+}
+
+/**
  * @brief Function to read lis2 accelerometer register
  *
  * @param regAddr register address to be read
@@ -176,10 +190,10 @@ static int _lis2ReadReg(uint8_t regAddr)
 	uint8_t res = 0;
 	ret_code_t errCode;
 
-	errCode = nrf_drv_twi_tx(&m_twi_LIS2, _LIS2_ADDR, &regAddr, sizeof(regAddr), true);
+	errCode = nrf_drv_twi_tx(&m_twi_LIS2, _LIS2_I2CADDR, &regAddr, sizeof(regAddr), true);
 	APP_ERROR_CHECK(errCode);
 
-	errCode = nrf_drv_twi_rx(&m_twi_LIS2, _LIS2_ADDR, (uint8_t*)&res, sizeof(res));
+	errCode = nrf_drv_twi_rx(&m_twi_LIS2, _LIS2_I2CADDR, (uint8_t*)&res, sizeof(res));
 	APP_ERROR_CHECK(errCode);
 	//NRF_LOG_PRINTF("\n\rnrf_drv_twi_rx result:%02x err_code: %d\r\n", res, err_code);
 
@@ -194,7 +208,7 @@ static int _lis2ReadReg(uint8_t regAddr)
  */
 static void _lis2WriteReg(uint8_t regAddr, uint8_t regValue)
 {
-	APP_ERROR_CHECK(nrf_drv_twi_tx(&m_twi_LIS2, _LIS2_ADDR, (uint8_t[]){regAddr, regValue}, sizeof((uint8_t[]){regAddr, regValue}), true));
+	APP_ERROR_CHECK(nrf_drv_twi_tx(&m_twi_LIS2, _LIS2_I2CADDR, (uint8_t[]){regAddr, regValue}, sizeof((uint8_t[]){regAddr, regValue}), true));
 }
 
 /**
@@ -202,6 +216,8 @@ static void _lis2WriteReg(uint8_t regAddr, uint8_t regValue)
  *
  * Set by default to LIS2_POWERDOWN.
  * The higher the frequency the higher the power consumption.
+ * 
+ * @param odr selected Output Data Rate from available odr in enum Lis2OutputDataRate
  */
 bool lis2SetOutputDataRate(Lis2OutputDataRate odr)
 {
@@ -244,18 +260,25 @@ bool lis2SetOutputDataRate(Lis2OutputDataRate odr)
  */
 void lis2Update()
 {
-/*
- * The last X, Y and Z values. Each item is 10, two's complement notation, running from -32738 to
- * +32737, which translates to -2g to ~ +2g. The resolution is therefore is 4G / (2^16 - 1), i.e. 0.061mG
- * per step.
- */
+	// 8+8=16 bit registers contain a signed int value which min is -2g (-32768 or -2^15) and max is +2g (32767)
 	int16_t regX = (_lis2ReadReg(_LIS2_REG_OUT_X_H) << 8 | _lis2ReadReg(_LIS2_REG_OUT_X_L));
 	int16_t regY = (_lis2ReadReg(_LIS2_REG_OUT_Y_H) << 8 | _lis2ReadReg(_LIS2_REG_OUT_Y_L));
 	int16_t regZ = (_lis2ReadReg(_LIS2_REG_OUT_Z_H) << 8 | _lis2ReadReg(_LIS2_REG_OUT_Z_L));
 
-	int32_t xVal = (regX * 61) / 1000;
-	int32_t yVal = (regY * 61) / 1000;
-	int32_t zVal = (regZ * 61) / 1000;
+	/* input range is (-2^15, +2^15-1)
+	 * output range is (-2000mg, +1999mg)
+	 * ratio is 16,384 bit/g or (2^14/1000) bit/g
+	 *
+	 * multiply for 1/ratio instead of dividing
+	 */
+	int32_t xVal = (regX * 1000) >> 14;
+	int32_t yVal = (regY * 1000) >> 14;
+	int32_t zVal = (regZ * 1000) >> 14;
+
+	NRF_LOG_PRINTF("X reg:%d\r\n", regX);
+	NRF_LOG_PRINTF("Y reg:%d\r\n", regY);
+	NRF_LOG_PRINTF("Z reg:%d\r\n", regZ);
+
 
 	lis2Accel[0] = (int16_t)xVal;
 	lis2Accel[1] = (int16_t)yVal;
@@ -282,16 +305,24 @@ void lis2UpdateTemp()
 }
 
 
+void lis2GetTiltAngle()
+{
+	/*float xyVectSum =
+	float tilt = atan2f(, );
+
+
+
+
+	NRF_LOG_PRINTF("tilt: %f\r\n", tilt);*/
+}
+
 /**
  * @brief Function for main application entry.
  */
 
 int main(void) {
 
-	uart_config();
-	twi_init();
-	lis2SetOutputDataRate(LIS2_ODR10HZ);
-	lis2Update();
+	lis2Init();
 
 	while(true) {
 		NRF_LOG_PRINTF("\n\rLIS2HH12 accelerometer library demo\r\n");
@@ -300,9 +331,10 @@ int main(void) {
 		NRF_LOG_PRINTF("Y acceleration:%d mG\r\n", lis2Accel[1]);
 		NRF_LOG_PRINTF("Z acceleration:%d mG\r\n", lis2Accel[2]);
 		//lis2UpdateTemp();
+		lis2GetTiltAngle();
 
 		NRF_LOG_PRINTF("\r\n");
-		nrf_delay_ms(2000);
+		nrf_delay_ms(1000);
 	}
 }
 
