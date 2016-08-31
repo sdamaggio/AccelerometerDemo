@@ -275,9 +275,10 @@ void lis2Update()
 	int32_t yVal = (regY * 1000) >> 14;
 	int32_t zVal = (regZ * 1000) >> 14;
 
-	NRF_LOG_PRINTF("X reg:%d\r\n", regX);
-	NRF_LOG_PRINTF("Y reg:%d\r\n", regY);
-	NRF_LOG_PRINTF("Z reg:%d\r\n", regZ);
+	/*NRF_LOG_PRINTF("X reg:%d       %x04\r\n", regX, regX);
+	NRF_LOG_PRINTF("Y reg:%d       %x04\r\n", regY, regY);
+	NRF_LOG_PRINTF("Z reg:%d       %x04\r\n", regZ, regZ);
+	NRF_LOG_PRINTF("sum: %d\r\n", xVal+yVal+zVal);*/
 
 
 	lis2Accel[0] = (int16_t)xVal;
@@ -307,13 +308,16 @@ void lis2UpdateTemp()
 
 void lis2GetTiltAngle()
 {
-	/*float xyVectSum =
-	float tilt = atan2f(, );
+	/*
+	 * tan(angle) = sqrt(x^2+y^2)/z
+	 * angle = atan( sqrt(x^2+y^2) / z )
+	 * */
 
+	float par1 = sqrtf(powf(lis2Accel[0],2) + powf(lis2Accel[1],2));
 
+	float tilt = atan2f(par1, lis2Accel[2]) * (180.0f / M_PI);
+	printf("tilt: %f°\r\n", tilt);
 
-
-	NRF_LOG_PRINTF("tilt: %f\r\n", tilt);*/
 }
 
 /**
