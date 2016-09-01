@@ -97,48 +97,7 @@ float lis2Tilt;
 static const nrf_drv_twi_t m_twi_LIS2 = NRF_DRV_TWI_INSTANCE(0);
 
 /**
- * @brief UART events handler.
- */
-static void uart_events_handler(app_uart_evt_t * p_event)
-{
-	switch (p_event->evt_type) {
-	case APP_UART_COMMUNICATION_ERROR:
-		APP_ERROR_HANDLER(p_event->data.error_communication);
-		break;
-
-	case APP_UART_FIFO_ERROR:
-		APP_ERROR_HANDLER(p_event->data.error_code);
-		break;
-
-	default:
-		break;
-	}
-}
-
-/**
- * @brief UART initialization.
- */
-static void uart_config(void)
-{
-	uint32_t err_code;
-	const app_uart_comm_params_t comm_params = {
-		RX_PIN_NUMBER,
-		TX_PIN_NUMBER,
-		RTS_PIN_NUMBER,
-		CTS_PIN_NUMBER,
-		APP_UART_FLOW_CONTROL_DISABLED,
-		false,
-		UART_BAUDRATE_BAUDRATE_Baud115200
-	};
-
-	APP_UART_FIFO_INIT(&comm_params, UART_RX_BUF_SIZE, UART_TX_BUF_SIZE,
-			uart_events_handler, APP_IRQ_PRIORITY_LOW, err_code);
-
-	APP_ERROR_CHECK(err_code);
-}
-
-/**
- * @brief UART initialization.
+ * @brief I2C initialization.
  */
 static void twi_init()
 {
@@ -162,8 +121,7 @@ static void twi_init()
  */
 void lis2Init()
 {
-	uart_config();
-	twi_init();	
+	twi_init();
 }
 
 /**
@@ -174,9 +132,14 @@ void lis2Init()
 static int _lis2ReadReg(uint8_t regAddr)
 {
 	uint8_t res = 0;
-	uint8_t arr[]={regAddr, res};
+	ret_code_t errCode;
 
-	APP_ERROR_CHECK(nrf_drv_twi_tx(&m_twi_LIS2, _LIS2_I2CADDR, arr, sizeof(arr), false));
+	errCode = nrf_drv_twi_tx(&m_twi_LIS2, _LIS2_I2CADDR, &regAddr, sizeof(regAddr), true);
+	APP_ERROR_CHECK(errCode);
+
+	errCode = nrf_drv_twi_rx(&m_twi_LIS2, _LIS2_I2CADDR, (uint8_t*)&res, sizeof(res));
+	APP_ERROR_CHECK(errCode);
+	//NRF_LOG_PRINTF("\n\rnrf_drv_twi_rx result:%02x err_code: %d\r\n", res, err_code);
 
 	return res;
 }
@@ -244,9 +207,9 @@ bool lis2SetOutputDataRate(Lis2OutputDataRate odr)
  * WARNING: value seems to not make sense!
  * Temperature value is stored in 2 8bit registers, 16 bit total
  * Resolution is 11 bit expressed in two's complement
- * Range is from -40 to +85 °C so 125 total, 0 is at ((40+85)/2)+40=22.5°C
- * Ratio is then 0.061035°C/bit
- * Tout = (int16_t)value * ratio + 22.5°C
+ * Range is from -40 to +85 degC so 125 total, 0 is at ((40+85)/2)+40=22.5degC
+ * Ratio is then 0.061035degC/bit
+ * Tout = (int16_t)value * ratio + 22.5degC
  *
  * @return	int16_t temperature register value
  */
@@ -314,6 +277,9 @@ void lis2Update()
 int main(void) {
 
 	lis2Init();
+	nrf_delay_ms(50);
+	lis2SetOutputDataRate(LIS2_ODR10HZ);
+	nrf_delay_ms(50);
 
 	while(true) {
 		NRF_LOG_PRINTF("\n\rLIS2HH12 accelerometer library demo\r\n");
@@ -321,11 +287,20 @@ int main(void) {
 		NRF_LOG_PRINTF("X acceleration:%d mG\r\n", lis2Accel[0]);
 		NRF_LOG_PRINTF("Y acceleration:%d mG\r\n", lis2Accel[1]);
 		NRF_LOG_PRINTF("Z acceleration:%d mG\r\n", lis2Accel[2]);
-		printf("tilt: %f°\r\n", lis2Tilt);
+		printf("tilt: %f deg\r\n", lis2Tilt);
+
+		/*
+		NRF_LOG_PRINTF("_LIS2_REG_CTRL1 %04x\r\n", _lis2ReadReg(_LIS2_REG_CTRL1));
+		NRF_LOG_PRINTF("_LIS2_REG_CTRL2 %04x\r\n", _lis2ReadReg(_LIS2_REG_CTRL2));
+		NRF_LOG_PRINTF("_LIS2_REG_CTRL3 %04x\r\n", _lis2ReadReg(_LIS2_REG_CTRL3));
+		NRF_LOG_PRINTF("_LIS2_REG_CTRL4 %04x\r\n", _lis2ReadReg(_LIS2_REG_CTRL4));
+		NRF_LOG_PRINTF("_LIS2_REG_CTRL5 %04x\r\n", _lis2ReadReg(_LIS2_REG_CTRL5));
+		NRF_LOG_PRINTF("_LIS2_REG_CTRL6 %04x\r\n", _lis2ReadReg(_LIS2_REG_CTRL6));
+		NRF_LOG_PRINTF("_LIS2_REG_CTRL7 %04x\r\n", _lis2ReadReg(_LIS2_REG_CTRL7));
+		*/
 
 		NRF_LOG_PRINTF("\r\n");
 		nrf_delay_ms(1000);
 	}
 }
-
 
