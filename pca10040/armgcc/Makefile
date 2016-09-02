@@ -45,6 +45,7 @@ $(abspath ../../../../../components/libraries/util/nrf_log.c) \
 $(abspath ../../../../../components/libraries/fifo/app_fifo.c) \
 $(abspath ../../../../../components/libraries/util/app_util_platform.c) \
 $(abspath ../../../../../components/libraries/util/nrf_assert.c) \
+$(abspath ../../../../../components/libraries/twi/app_twi.c) \
 $(abspath ../../../../../components/libraries/uart/retarget.c) \
 $(abspath ../../../../../components/libraries/uart/app_uart_fifo.c) \
 $(abspath ../../../../../components/drivers_nrf/delay/nrf_delay.c) \
@@ -73,6 +74,7 @@ INC_PATHS += -I$(abspath ../../../../../components/drivers_nrf/common)
 INC_PATHS += -I$(abspath ../../../../../components/drivers_nrf/config)
 INC_PATHS += -I$(abspath ../../../../../components/libraries/util)
 INC_PATHS += -I$(abspath ../../../../../components/libraries/fifo)
+INC_PATHS += -I$(abspath ../../../../../components/libraries/twi)
 INC_PATHS += -I$(abspath ../../../../../components/libraries/uart)
 INC_PATHS += -I$(abspath ../../../../../components/toolchain)
 INC_PATHS += -I$(abspath ../../../../../components/toolchain/gcc)
