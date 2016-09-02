@@ -26,7 +26,6 @@
 #include <math.h>
 #include "boards.h"
 #include "app_util_platform.h"
-#include "app_uart.h"
 #include "app_error.h"
 #include "nrf_drv_twi.h"
 #include "nrf_delay.h"
@@ -40,11 +39,6 @@ const uint8_t leds_list[LEDS_NUMBER] = LEDS_LIST;
 /*Pins to connect shield. */
 #define ARDUINO_I2C_SCL_PIN 7
 #define ARDUINO_I2C_SDA_PIN 30
-
-/*UART buffer size. */
-#define UART_TX_BUF_SIZE 256
-#define UART_RX_BUF_SIZE 1
-
 
 /*Common addresses definition for accelerometer LIS2HH12. */
 #define _LIS2_I2CADDR				0x1E	// 7bit I2C address when pin SA0 is low, 0x1D when SA0 is high
@@ -235,8 +229,8 @@ static float _lis2GetTilt()
 	 *
 	 * par1 = sqrt(x^2+y^2)
 	 */
-	float par1 = sqrtf(powf(lis2Accel[0],2) + powf(lis2Accel[1],2));
-	float tilt = atan2f(par1, lis2Accel[2]);
+	float par1 = sqrtf(powf(lis2Accel[LIS2_X],2) + powf(lis2Accel[LIS2_Y],2));
+	float tilt = atan2f(par1, lis2Accel[LIS2_Z]);
 
 	// convert from radians to degrees
 	return tilt * (180.0f / (float)M_PI);
@@ -263,9 +257,9 @@ void lis2Update()
 	int32_t yVal = (regY * 1000) >> 14;
 	int32_t zVal = (regZ * 1000) >> 14;
 
-	lis2Accel[0] = (int16_t)xVal;
-	lis2Accel[1] = (int16_t)yVal;
-	lis2Accel[2] = (int16_t)zVal;
+	lis2Accel[LIS2_X] = (int16_t)xVal;
+	lis2Accel[LIS2_Y] = (int16_t)yVal;
+	lis2Accel[LIS2_Z] = (int16_t)zVal;
 
 	// update tilt angle
 	lis2Tilt = _lis2GetTilt();
@@ -284,9 +278,9 @@ int main(void) {
 	while(true) {
 		NRF_LOG_PRINTF("\n\rLIS2HH12 accelerometer library demo\r\n");
 		lis2Update();
-		NRF_LOG_PRINTF("X acceleration:%d mG\r\n", lis2Accel[0]);
-		NRF_LOG_PRINTF("Y acceleration:%d mG\r\n", lis2Accel[1]);
-		NRF_LOG_PRINTF("Z acceleration:%d mG\r\n", lis2Accel[2]);
+		NRF_LOG_PRINTF("X acceleration:%d mG\r\n", lis2Accel[LIS2_X]);
+		NRF_LOG_PRINTF("Y acceleration:%d mG\r\n", lis2Accel[LIS2_Y]);
+		NRF_LOG_PRINTF("Z acceleration:%d mG\r\n", lis2Accel[LIS2_Z]);
 		printf("tilt: %f deg\r\n", lis2Tilt);
 
 		/*
